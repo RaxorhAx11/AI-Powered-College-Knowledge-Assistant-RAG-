@@ -263,7 +263,22 @@ python -m unittest scripts/test_phase2.py
 
 ---
 
+## 🚀 Deploying on Render (Free Tier)
+
+RAXEL comes pre-configured with a **1-click Render Blueprint** (`render.yaml`).
+
+### Quick Deployment Steps:
+1. Push your repository to GitHub.
+2. Sign in to [Render](https://render.com) and click **New +** -> **Blueprint**.
+3. Connect your repository.
+4. Render will automatically detect `render.yaml` and configure the Python Web Service with Node.js frontend build steps.
+5. When prompted for `GEMINI_API_KEY`, enter your Google Gemini API key.
+6. Click **Apply**. Your app will be live on `https://<your-app-name>.onrender.com`!
+
+---
+
 ## 📄 License
 
 This project is licensed under the [MIT License](LICENSE).
+
 

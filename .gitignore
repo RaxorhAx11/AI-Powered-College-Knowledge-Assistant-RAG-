@@ -35,18 +35,14 @@ frontend/.vite/
 .env.local
 .env.*.local
 
-# Databases & Runtime State
+# Databases & Runtime State (Keep seed DB tracked for production cloud deployment)
 *.db
-data/*.db
-data/documents_manifest.json
+!data/raxel.db
+!data/documents_manifest.json
 data/sessions.json
 evaluation_results.json
 
-# Uploaded Documents & Vectorstore Indices (rebuilt via ingest)
-data/documents/*
-!data/documents/.gitkeep
-data/vectorstore/*
-!data/vectorstore/.gitkeep
+# Uploaded Documents & Vectorstore Indices (Tracked for instant cloud deployment)
 data/backups/*
 !data/backups/.gitkeep
 
