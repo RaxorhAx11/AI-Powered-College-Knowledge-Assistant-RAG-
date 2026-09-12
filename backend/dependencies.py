@@ -10,7 +10,7 @@ from src.config import Config
 from src.embeddings import EmbeddingManager
 from src.vector_store import VectorStoreManager
 from src.retriever import KnowledgeRetriever
-from src.llm import OllamaLLM
+from src.llm import BaseLLMProvider, OllamaLLM, get_llm_provider
 from src.rag_pipeline import RAGPipeline
 from src.document_manager import DocumentManager
 from src.quality_control import QualityControlManager
@@ -67,7 +67,7 @@ def revoke_session(token: Optional[str]) -> bool:
 class ComponentRegistry:
     _embedding_manager: Optional[EmbeddingManager] = None
     _vector_store: Optional[VectorStoreManager] = None
-    _llm: Optional[OllamaLLM] = None
+    _llm: Optional[BaseLLMProvider] = None
     _retriever: Optional[KnowledgeRetriever] = None
     _rag_pipeline: Optional[RAGPipeline] = None
     _doc_manager: Optional[DocumentManager] = None
@@ -85,7 +85,7 @@ class ComponentRegistry:
                 metadata_path=Config.METADATA_PATH
             )
         if cls._llm is None:
-            cls._llm = OllamaLLM(model_name=Config.LLM_MODEL, base_url=Config.OLLAMA_BASE_URL)
+            cls._llm = get_llm_provider(Config.LLM_PROVIDER)
         if cls._retriever is None:
             cls._retriever = KnowledgeRetriever(
                 vector_store=cls._vector_store,

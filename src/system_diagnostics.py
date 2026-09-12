@@ -6,6 +6,7 @@ backup validation, atomic safety restore safeguards, safe active index rebuildin
 maintenance concurrency guards, and audit logging.
 """
 
+import os
 import re
 import json
 import shutil
@@ -94,7 +95,9 @@ class SystemDiagnosticsManager:
         emb_res = self._check_embedding_model(faiss_res.get("dimension"))
         checks.append(emb_res)
 
-        # 7. Ollama / Local LLM Check
+        # 7. AI LLM Providers Check (Gemini API & Local Ollama)
+        gemini_res = self._check_gemini()
+        checks.append(gemini_res)
         ollama_res = self._check_ollama()
         checks.append(ollama_res)
 
@@ -418,6 +421,47 @@ class SystemDiagnosticsManager:
                 "status": "FAIL",
                 "message": f"Failed to load local embedding model: {str(e)}",
                 "recommendation": "Verify PyTorch / sentence-transformers installation and model cache."
+            }
+
+    def _check_gemini(self) -> Dict[str, Any]:
+        """Check status of Gemini API configuration and connectivity."""
+        api_key = Config.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY", "")
+        if not api_key:
+            return {
+                "name": "Cloud LLM (Gemini API)",
+                "category": "llm",
+                "status": "WARNING",
+                "message": "Gemini API key is not configured in GEMINI_API_KEY environment variable.",
+                "recommendation": "Add GEMINI_API_KEY to .env file or environment variables to enable Gemini API."
+            }
+        
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
+            req = urllib.request.Request(url, headers={"User-Agent": "RAXEL-Diagnostics"})
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                if resp.status == 200:
+                    return {
+                        "name": "Cloud LLM (Gemini API)",
+                        "category": "llm",
+                        "status": "PASS",
+                        "message": f"Gemini API key validated. Active model '{Config.GEMINI_MODEL}' ready.",
+                        "recommendation": ""
+                    }
+                else:
+                    return {
+                        "name": "Cloud LLM (Gemini API)",
+                        "category": "llm",
+                        "status": "WARNING",
+                        "message": f"Gemini API returned status code {resp.status}.",
+                        "recommendation": "Check GEMINI_API_KEY validity and network connectivity."
+                    }
+        except Exception as e:
+            return {
+                "name": "Cloud LLM (Gemini API)",
+                "category": "llm",
+                "status": "WARNING",
+                "message": f"Gemini API connectivity check failed ({str(e)}).",
+                "recommendation": "Verify internet connectivity and GEMINI_API_KEY."
             }
 
     def _check_ollama(self) -> Dict[str, Any]:

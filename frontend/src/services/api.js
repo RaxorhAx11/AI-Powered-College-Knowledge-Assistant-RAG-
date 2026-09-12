@@ -52,15 +52,18 @@ export const api = {
   logout: (options = {}) => request('/auth/logout', { method: 'POST', ...options }),
   getMe: (options = {}) => request('/auth/me', options),
 
-  // Chat
-  sendMessage: (message, conversationId, chatHistory, docTypeFilter, options = {}) => 
+  // Chat & AI Providers
+  getProviders: (options = {}) => request('/chat/providers', options),
+  sendMessage: (message, conversationId, chatHistory, docTypeFilter, provider, model, options = {}) => 
     request('/chat', {
       method: 'POST',
       body: JSON.stringify({
         message,
         conversation_id: conversationId,
         chat_history: chatHistory,
-        doc_type_filter: docTypeFilter
+        doc_type_filter: docTypeFilter,
+        provider: provider,
+        model: model
       }),
       ...options
     }),

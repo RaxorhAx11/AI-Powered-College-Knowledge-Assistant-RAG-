@@ -21,6 +21,8 @@ class ChatRequest(BaseModel):
     conversation_id: Optional[str] = None
     doc_type_filter: Optional[str] = None
     chat_history: Optional[List[ChatMessage]] = None
+    provider: Optional[str] = Field(None, description="AI provider: gemini or ollama")
+    model: Optional[str] = Field(None, description="Specific model name for provider")
 
 class CitationItem(BaseModel):
     document_name: str
@@ -52,6 +54,44 @@ def sanitize_for_pydantic(data: Any) -> Any:
         return data.item()
     return data
 
+@router.get("/providers")
+def get_providers():
+    """Retrieve available AI providers (Gemini & Ollama) and their models."""
+    from src.config import Config
+    from src.llm import get_llm_provider
+
+    gemini_p = get_llm_provider("gemini")
+    ollama_p = get_llm_provider("ollama")
+
+    gemini_status = gemini_p.check_connection()
+    ollama_status = ollama_p.check_connection()
+
+    return {
+        "default_provider": Config.LLM_PROVIDER,
+        "default_gemini_model": Config.GEMINI_MODEL,
+        "default_ollama_model": Config.LLM_MODEL,
+        "providers": [
+            {
+                "id": "gemini",
+                "name": "Gemini API",
+                "description": "Primary Google Cloud LLM (Fast, high intelligence)",
+                "models": Config.AVAILABLE_GEMINI_MODELS,
+                "configured": bool(Config.GEMINI_API_KEY),
+                "available": gemini_status.get("available", False),
+                "status_message": gemini_status.get("message", "")
+            },
+            {
+                "id": "ollama",
+                "name": "Local Ollama",
+                "description": "Local offline LLM (Privacy-focused)",
+                "models": Config.AVAILABLE_OLLAMA_MODELS,
+                "configured": True,
+                "available": ollama_status.get("available", False),
+                "status_message": ollama_status.get("message", "")
+            }
+        ]
+    }
+
 @router.post("", response_model=ChatResponse)
 def ask_chat(payload: ChatRequest, user: dict = Depends(get_current_user_optional)):
     """
@@ -78,7 +118,9 @@ def ask_chat(payload: ChatRequest, user: dict = Depends(get_current_user_optiona
         rag_result = pipeline.answer_question(
             question=payload.message.strip(),
             chat_history=history_list,
-            doc_type_filter=payload.doc_type_filter
+            doc_type_filter=payload.doc_type_filter,
+            provider=payload.provider,
+            model=payload.model
         )
         
         sanitized = sanitize_for_pydantic(rag_result)

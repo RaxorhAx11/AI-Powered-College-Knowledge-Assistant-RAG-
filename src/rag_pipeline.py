@@ -3,7 +3,7 @@ import logging
 import time
 
 from src.retriever import KnowledgeRetriever
-from src.llm import OllamaLLM
+from src.llm import BaseLLMProvider, OllamaLLM, get_llm_provider
 from src.prompt_builder import get_system_prompt, build_user_prompt
 from src.citation_validator import validate_and_sanitize_answer_citations
 from src.answer_validator import (
@@ -26,7 +26,7 @@ class RAGPipeline:
     and ambiguous query clarification prompts.
     """
 
-    def __init__(self, retriever: KnowledgeRetriever, llm: OllamaLLM):
+    def __init__(self, retriever: KnowledgeRetriever, llm: BaseLLMProvider):
         self.retriever = retriever
         self.llm = llm
 
@@ -34,19 +34,22 @@ class RAGPipeline:
         self, 
         question: str, 
         chat_history: Optional[List[Dict[str, str]]] = None,
-        doc_type_filter: Optional[str] = None
+        doc_type_filter: Optional[str] = None,
+        provider: Optional[str] = None,
+        model: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Execute Phase 5 grounded RAG workflow for a student question.
         """
         start_time = time.time()
-        logger.info(f"Processing student question: '{question}'")
+        effective_llm = get_llm_provider(provider_name=provider, model_name=model) if (provider or model) else self.llm
+        logger.info(f"Processing student question: '{question}' using provider '{getattr(effective_llm, 'provider_id', 'llm')}' and model '{getattr(effective_llm, 'model_name', '')}'")
 
         # 0. Query Context Resolution for follow-up questions (using USER history ONLY)
         search_query = question
         was_resolved = False
         if chat_history:
-            search_query, was_resolved = resolve_followup_query(question, chat_history, llm=self.llm)
+            search_query, was_resolved = resolve_followup_query(question, chat_history, llm=effective_llm)
             if was_resolved:
                 logger.info(f"Resolved follow-up query: '{question}' -> '{search_query}'")
 
@@ -106,7 +109,7 @@ class RAGPipeline:
         user_prompt = build_user_prompt(search_query, chunks, chat_history=chat_history)
 
         # 4. Invoke LLM for grounded answer generation
-        raw_answer = self.llm.generate(user_prompt, system_prompt=system_prompt)
+        raw_answer = effective_llm.generate(user_prompt, system_prompt=system_prompt)
 
         # 5. Citation validation: programmatically derive and sanitize citations
         citation_res = validate_and_sanitize_answer_citations(raw_answer, chunks)

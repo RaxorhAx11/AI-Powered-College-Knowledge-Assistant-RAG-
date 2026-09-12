@@ -30,6 +30,12 @@ const EXAMPLE_PROMPTS = [
 ];
 
 const LOCAL_STORAGE_KEY = 'raxel_chat_history_sessions';
+const LOCAL_STORAGE_SETTINGS_KEY = 'raxel_llm_settings';
+
+const DEFAULT_PROVIDER_MODELS = {
+  gemini: ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash', 'gemini-2.5-flash'],
+  ollama: ['llama3:latest', 'llama3', 'mistral', 'phi3'],
+};
 
 const ChatMessage = React.memo(({ msg, idx, isLast, isCopied, onCopy, onRegenerate }) => {
   return (
@@ -123,6 +129,22 @@ export const ChatInterface = () => {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
 
+  // LLM Provider & Model Selection State
+  const [providerSettings, setProviderSettings] = useState(() => {
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_SETTINGS_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.provider && parsed.model) {
+          return parsed;
+        }
+      }
+    } catch {}
+    return { provider: 'gemini', model: 'gemini-1.5-flash' };
+  });
+
+  const [availableProvidersData, setAvailableProvidersData] = useState(null);
+
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const abortControllerRef = useRef(null);
@@ -135,6 +157,37 @@ export const ChatInterface = () => {
       console.error('Failed to save chat history:', e);
     }
   }, [sessions]);
+
+  // Sync LLM provider settings to LocalStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_SETTINGS_KEY, JSON.stringify(providerSettings));
+    } catch (e) {
+      console.error('Failed to save LLM provider settings:', e);
+    }
+  }, [providerSettings]);
+
+  // Fetch available providers & models on mount
+  useEffect(() => {
+    api.getProviders()
+      .then((data) => {
+        setAvailableProvidersData(data);
+      })
+      .catch((err) => {
+        console.warn('Could not fetch LLM providers:', err);
+      });
+  }, []);
+
+  const handleProviderChange = (newProvider) => {
+    const providerObj = availableProvidersData?.providers?.find((p) => p.id === newProvider);
+    const models = providerObj?.models || DEFAULT_PROVIDER_MODELS[newProvider] || [];
+    const defaultModel = models[0] || (newProvider === 'gemini' ? 'gemini-1.5-flash' : 'llama3:latest');
+    setProviderSettings({ provider: newProvider, model: defaultModel });
+  };
+
+  const handleModelChange = (newModel) => {
+    setProviderSettings((prev) => ({ ...prev, model: newModel }));
+  };
 
   // Clean up in-flight requests on unmount
   useEffect(() => {
@@ -223,7 +276,15 @@ export const ChatInterface = () => {
         .filter((m) => m.role === 'user' || m.role === 'assistant')
         .map((m) => ({ role: m.role, content: m.content }));
 
-      const res = await api.sendMessage(question.trim(), null, historyForApi, undefined, { signal: controller.signal });
+      const res = await api.sendMessage(
+        question.trim(),
+        null,
+        historyForApi,
+        undefined,
+        providerSettings.provider,
+        providerSettings.model,
+        { signal: controller.signal }
+      );
 
       const botMsg = {
         role: 'assistant',
@@ -387,8 +448,8 @@ export const ChatInterface = () => {
       {/* MAIN CHAT AREA — Fixed h-[calc(100vh-64px)] viewport height */}
       <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full p-4 sm:p-6 relative h-[calc(100vh-64px)] min-h-0 z-10 justify-between overflow-hidden">
         {/* Top Chat Control Bar */}
-        <div className="flex justify-between items-center pb-3.5 border-b border-raxel-border/80 mb-3 shrink-0 bg-raxel-soft-white/80 backdrop-blur-xs">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap sm:flex-nowrap justify-between items-center gap-2 pb-3.5 border-b border-raxel-border/80 mb-3 shrink-0 bg-raxel-soft-white/80 backdrop-blur-xs">
+          <div className="flex flex-wrap items-center gap-2">
             {!historyOpen && (
               <Button
                 variant="secondary"
@@ -406,8 +467,37 @@ export const ChatInterface = () => {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-raxel-teal opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-raxel-teal"></span>
               </span>
-              <ShieldCheck className="w-3.5 h-3.5 text-raxel-teal" /> Grounded RAG Engine
+              <ShieldCheck className="w-3.5 h-3.5 text-raxel-teal" /> Grounded RAG
             </span>
+
+            {/* AI Provider & Model Selector */}
+            <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-xl border border-raxel-border shadow-2xs">
+              <Cpu className="w-3.5 h-3.5 text-raxel-indigo shrink-0" />
+              <select
+                value={providerSettings.provider}
+                onChange={(e) => handleProviderChange(e.target.value)}
+                className="text-xs font-semibold text-raxel-indigo bg-transparent outline-none cursor-pointer pr-1"
+                aria-label="Select AI Provider"
+              >
+                <option value="gemini">Gemini API (Cloud)</option>
+                <option value="ollama">Local Ollama</option>
+              </select>
+
+              <span className="text-raxel-border font-light">|</span>
+
+              <select
+                value={providerSettings.model}
+                onChange={(e) => handleModelChange(e.target.value)}
+                className="text-xs font-medium text-raxel-muted bg-transparent outline-none cursor-pointer max-w-[140px] truncate"
+                aria-label="Select Model"
+              >
+                {((availableProvidersData?.providers?.find((p) => p.id === providerSettings.provider)?.models) || DEFAULT_PROVIDER_MODELS[providerSettings.provider] || []).map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <Button
