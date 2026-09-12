@@ -260,3 +260,10 @@ python -m unittest scripts/test_phase2.py
 - **User Question**: *"What is the recipe for chocolate cake?"*
 - **RAXEL Response**: *"I could not find enough information in the college documents to answer this question confidently."*
 - **Citations**: None *(Zero hallucinated citations)*.
+
+---
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE).
+
