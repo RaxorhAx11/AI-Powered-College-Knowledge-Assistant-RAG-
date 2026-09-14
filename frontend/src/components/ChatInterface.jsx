@@ -21,6 +21,7 @@ import { Button } from './ui/Button';
 import { Alert } from './ui/Alert';
 import { RaxelSearchAnimation } from './RaxelSearchAnimation';
 import { api } from '../services/api';
+import { useToast } from '../context/ToastContext';
 
 const EXAMPLE_PROMPTS = [
   "What is the minimum attendance requirement?",
@@ -112,6 +113,7 @@ const ChatMessage = React.memo(({ msg, idx, isLast, isCopied, onCopy, onRegenera
 });
 
 export const ChatInterface = () => {
+  const toast = useToast();
   const [sessions, setSessions] = useState(() => {
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -172,6 +174,32 @@ export const ChatInterface = () => {
     api.getProviders()
       .then((data) => {
         setAvailableProvidersData(data);
+        if (data && data.providers && data.providers.length > 0) {
+          setProviderSettings((prev) => {
+            const currentProviderInfo = data.providers.find((p) => p.id === prev.provider);
+            // If current provider is configured and available, keep it
+            if (currentProviderInfo && currentProviderInfo.available) {
+              const models = currentProviderInfo.models || [];
+              const model = models.includes(prev.model) ? prev.model : (models[0] || prev.model);
+              return { ...prev, model };
+            }
+
+            // Otherwise, fallback to default_provider if available, or any available provider
+            const defaultProviderInfo = data.providers.find((p) => p.id === data.default_provider && p.available);
+            const activeFallback = defaultProviderInfo || data.providers.find((p) => p.available);
+
+            if (activeFallback) {
+              const models = activeFallback.models || [];
+              const model = models[0] || (activeFallback.id === 'gemini' ? 'gemini-1.5-flash' : 'llama3:latest');
+              return {
+                provider: activeFallback.id,
+                model: model,
+              };
+            }
+
+            return prev;
+          });
+        }
       })
       .catch((err) => {
         console.warn('Could not fetch LLM providers:', err);
@@ -180,6 +208,13 @@ export const ChatInterface = () => {
 
   const handleProviderChange = (newProvider) => {
     const providerObj = availableProvidersData?.providers?.find((p) => p.id === newProvider);
+    if (providerObj && !providerObj.available) {
+      if (newProvider === 'gemini') {
+        toast.info("Gemini API key is not configured in .env. To use Gemini, add GEMINI_API_KEY=AIzaSy... in .env, or use Local Ollama.");
+      } else {
+        toast.info(`${providerObj.name} is offline. Start it with 'ollama serve' in terminal.`);
+      }
+    }
     const models = providerObj?.models || DEFAULT_PROVIDER_MODELS[newProvider] || [];
     const defaultModel = models[0] || (newProvider === 'gemini' ? 'gemini-1.5-flash' : 'llama3:latest');
     setProviderSettings({ provider: newProvider, model: defaultModel });
@@ -479,8 +514,18 @@ export const ChatInterface = () => {
                 className="text-xs font-semibold text-raxel-indigo bg-transparent outline-none cursor-pointer pr-1"
                 aria-label="Select AI Provider"
               >
-                <option value="gemini">Gemini API (Cloud)</option>
-                <option value="ollama">Local Ollama</option>
+                {availableProvidersData?.providers ? (
+                  availableProvidersData.providers.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} {p.available ? '(Ready)' : '(No Key / Offline)'}
+                    </option>
+                  ))
+                ) : (
+                  <>
+                    <option value="gemini">Gemini API (Cloud)</option>
+                    <option value="ollama">Local Ollama</option>
+                  </>
+                )}
               </select>
 
               <span className="text-raxel-border font-light">|</span>

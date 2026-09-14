@@ -8,7 +8,31 @@ load_dotenv()
 # Base Project Directory
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-class Config:
+class ConfigMeta(type):
+    """Metaclass allowing dynamic resolution and hot-reloading of environment-dependent settings."""
+
+    @property
+    def LLM_PROVIDER(cls) -> str:
+        return os.getenv("LLM_PROVIDER", "ollama")
+
+    @property
+    def GEMINI_API_KEY(cls) -> str:
+        return os.getenv("GEMINI_API_KEY", "")
+
+    @property
+    def GEMINI_MODEL(cls) -> str:
+        return os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+
+    @property
+    def LLM_MODEL(cls) -> str:
+        return os.getenv("LLM_MODEL", "llama3:latest")
+
+    @property
+    def OLLAMA_BASE_URL(cls) -> str:
+        return os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+
+
+class Config(metaclass=ConfigMeta):
     """Central configuration class for College Knowledge Assistant (RAXEL)."""
     
     BASE_DIR: Path = BASE_DIR
@@ -28,17 +52,8 @@ class Config:
     # Local Embedding Model
     EMBEDDING_MODEL_NAME: str = os.getenv("EMBEDDING_MODEL_NAME", "sentence-transformers/all-MiniLM-L6-v2")
     
-    # AI / LLM Providers (Gemini API & Local Ollama)
-    LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "gemini")
-    
-    # Gemini API Settings (Primary/Default)
-    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+    # Model lists
     AVAILABLE_GEMINI_MODELS: list = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash", "gemini-2.5-flash"]
-    
-    # Local LLM (Ollama Settings)
-    LLM_MODEL: str = os.getenv("LLM_MODEL", "llama3:latest")
-    OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     AVAILABLE_OLLAMA_MODELS: list = ["llama3:latest", "llama3", "mistral", "phi3"]
     
     # Text Chunking Settings

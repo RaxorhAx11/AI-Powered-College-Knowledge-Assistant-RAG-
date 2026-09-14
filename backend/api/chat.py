@@ -59,6 +59,9 @@ def get_providers():
     """Retrieve available AI providers (Gemini & Ollama) and their models."""
     from src.config import Config
     from src.llm import get_llm_provider
+    from dotenv import load_dotenv
+
+    load_dotenv(override=True)
 
     gemini_p = get_llm_provider("gemini")
     ollama_p = get_llm_provider("ollama")
@@ -76,7 +79,7 @@ def get_providers():
                 "name": "Gemini API",
                 "description": "Primary Google Cloud LLM (Fast, high intelligence)",
                 "models": Config.AVAILABLE_GEMINI_MODELS,
-                "configured": bool(Config.GEMINI_API_KEY),
+                "configured": bool(gemini_p.api_key),
                 "available": gemini_status.get("available", False),
                 "status_message": gemini_status.get("message", "")
             },

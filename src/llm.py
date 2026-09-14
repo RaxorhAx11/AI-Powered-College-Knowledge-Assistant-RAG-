@@ -134,8 +134,16 @@ class GeminiProvider(BaseLLMProvider):
     def __init__(self, model_name: Optional[str] = None, api_key: Optional[str] = None):
         self.provider_id = "gemini"
         self.provider_name = "Gemini API"
-        self.model_name = model_name or Config.GEMINI_MODEL
-        self.api_key = api_key or Config.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY", "")
+        self._model_name = model_name
+        self._api_key = api_key
+
+    @property
+    def model_name(self) -> str:
+        return self._model_name or Config.GEMINI_MODEL
+
+    @property
+    def api_key(self) -> str:
+        return self._api_key or Config.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY", "")
 
     def get_available_models(self) -> List[str]:
         return Config.AVAILABLE_GEMINI_MODELS
@@ -147,7 +155,7 @@ class GeminiProvider(BaseLLMProvider):
         if not self.api_key:
             return {
                 "available": False,
-                "message": "Gemini API Key missing. Please configure GEMINI_API_KEY environment variable.",
+                "message": "Gemini API Key missing. Please configure GEMINI_API_KEY in .env file.",
                 "installed_models": Config.AVAILABLE_GEMINI_MODELS
             }
 
@@ -184,10 +192,24 @@ class GeminiProvider(BaseLLMProvider):
         Generate text response from Gemini model using Google Generative Language REST API.
         """
         if not self.api_key:
+            # Check if local Ollama is available as graceful fallback
+            try:
+                ollama = OllamaLLM()
+                if ollama.check_connection().get("available", False):
+                    logger.info("Gemini API key missing. Falling back to Local Ollama.")
+                    ollama_ans = ollama.generate(prompt, system_prompt=system_prompt)
+                    return (
+                        f"💡 *Note: Gemini API key is missing in `.env`. RAXEL answered using your local Ollama (`{ollama.model_name}`). "
+                        f"To use Gemini Cloud, configure `GEMINI_API_KEY=AIzaSy...` in your `.env` file.*\n\n{ollama_ans}"
+                    )
+            except Exception as e:
+                logger.debug(f"Ollama fallback attempt failed: {e}")
+
             return (
                 "⚠️ **Gemini API Key Missing**\n\n"
                 "Please configure your `GEMINI_API_KEY` in the environment or `.env` file to use Gemini API.\n"
-                "Example: `GEMINI_API_KEY=AIzaSy...`"
+                "Example: `GEMINI_API_KEY=AIzaSy...`\n\n"
+                "👉 Alternatively, switch to **Local Ollama** in the top AI Provider dropdown."
             )
 
         endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model_name}:generateContent?key={self.api_key}"
