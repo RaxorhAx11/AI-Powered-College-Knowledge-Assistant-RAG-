@@ -562,17 +562,7 @@ RAXEL is not a theoretical concept; it runs today on standard commodity hardware
 
 ---
 
-## 🧑‍💻 20. Team & Contributions
-
-| Contributor | Focus Area | Key Technical Contributions |
-| :--- | :--- | :--- |
-| **Lead Engineer** | Full-Stack & RAG Architecture | Built Hybrid Retriever (FAISS + BM25), Dual LLM Provider (Gemini/Ollama), and FastAPI backend architecture. |
-| **Systems & Governance** | Governance & Ingestion | Developed PyMuPDF table parsing, 3-tier document governance, and atomic vector store rebuilder. |
-| **Frontend & UX** | Interface & Experience | Crafted React 19 glassmorphism UI, real-time citation cards, and visual RAG pipeline animations. |
-
----
-
-## 🤝 21. Contributing
+## 🤝 20. Contributing
 
 1. Fork the Project repository.
 2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`).
@@ -583,6 +573,6 @@ RAXEL is not a theoretical concept; it runs today on standard commodity hardware
 
 ---
 
-## 📄 22. License
+## 📄 21. License
 
 Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more information.
